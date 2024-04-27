@@ -1,10 +1,12 @@
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from bson import ObjectId
+from flask_cors import CORS 
 import bcrypt
 from flask_jwt_extended import JWTManager, create_access_token
 
 app = Flask(__name__)
+CORS(app) 
 app.config['JWT_SECRET_KEY'] = 'super-secret'  # Change this to a secure, long, random string in production
 jwt = JWTManager(app)
 
@@ -13,6 +15,10 @@ app.config['MONGO_URI'] = 'mongodb+srv://dhwanigohil108:RT8PfkeOkkwt57kF@weshare
 # Initialize MongoDB client
 mongo = MongoClient(app.config['MONGO_URI'])
 db = mongo.get_database()
+
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({'message': 'Welcome to WeShare!'}), 200
 
 @app.route('/register', methods=['POST'])
 def register():
