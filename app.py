@@ -69,5 +69,29 @@ def login():
 
     return jsonify({'message': 'Login successful', 'access_token': access_token}), 200
 
+ride_requests = []
+
+@app.route('/request', methods=['POST'])
+def request_ride():
+    data = request.json
+    start_location = data.get('start_location')
+    end_location = data.get('end_location')
+
+    # Check if both start and end locations are provided
+    if not start_location or not end_location:
+        return jsonify({'error': 'Both start and end locations are required'}), 400
+
+    # Store the ride request in the list (for demonstration purposes)
+    ride_request = {
+        'start_location': start_location,
+        'end_location': end_location
+    }
+    ride_requests.append(ride_request)
+
+    return jsonify({'message': 'Ride request received successfully'}), 201
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 if __name__ == '__main__':
     app.run(debug=True)
