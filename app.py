@@ -233,16 +233,68 @@ def remove_ride_request():
 
 #     return jsonify({'matched_users': matched_users}), 200
 
+# def group_by_preferences(users):
+#     groups = {}
+#     for user in users:
+#         preferences = (user['branch'], user['role'], user['year'], user['gender'])
+#         if preferences not in groups:
+#             groups[preferences] = []
+#         groups[preferences].append(user)
+#     return groups.values()
+
+
+# @app.route('/find-matching-rides', methods=['POST'])
+# def find_matching_rides():
+#     data = request.get_json()
+#     email = data.get('email')
+#     from_latitude = data.get('from_latitude')
+#     from_longitude = data.get('from_longitude')
+#     to_latitude = data.get('to_latitude')
+#     to_longitude = data.get('to_longitude')
+
+#     if not email or not from_latitude or not from_longitude or not to_latitude or not to_longitude:
+#         return jsonify({'message': 'Incomplete data in request body'}), 400
+
+#     # Query the RideRequest collection to find ride requests with the same destination coordinates
+#     matching_rides = db.RideRequest.find({
+#         'tolatitude': to_latitude,
+#         'tolongitude': to_longitude
+#     })
+
+#     # Prepare list to store distances and user data
+#     users = []
+
+#     # Calculate distances and filter out the user's own ride request
+#     for ride in matching_rides:
+#         if ride['email'] != email:
+#             ride_location = (ride['fromlatitude'], ride['fromlongitude'])
+#             user_location = (from_latitude, from_longitude)
+#             distance = great_circle(user_location, ride_location).kilometers
+#             users.append({
+#                 'email': ride['email'],
+#                 'distance': distance,
+#                 'branch': ride['branch'],
+#                 'role': ride['role'],
+#                 'year': ride['year'],
+#                 'gender': ride['gender']
+#             })
+
+#     # Sort the rides by distance and get the top 6 closest matches
+#     closest_matches = sorted(users, key=lambda x: x['distance'])[:6]
+
+#     # Group the closest matches based on similar preferences
+#     grouped_matches = group_by_preferences(closest_matches)
+
+#     # Prepare response data
+#     response_data = [{'group': idx + 1, 'users': group} for idx, group in enumerate(grouped_matches)]
+
+#     return jsonify({'groups': response_data}), 200
 def group_by_preferences(users):
-    groups = {}
+    groups = []
     for user in users:
         preferences = (user['branch'], user['role'], user['year'], user['gender'])
-        if preferences not in groups:
-            groups[preferences] = []
-        groups[preferences].append(user)
-    return groups.values()
-
-
+        groups.append({'email': user['email'], 'preferences': preferences})
+    return groups
 @app.route('/find-matching-rides', methods=['POST'])
 def find_matching_rides():
     data = request.get_json()
@@ -285,11 +337,14 @@ def find_matching_rides():
     # Group the closest matches based on similar preferences
     grouped_matches = group_by_preferences(closest_matches)
 
+    # Form groups of 2 users each
+    groups = []
+    for i in range(0, len(grouped_matches), 2):
+        group = grouped_matches[i:i+2]
+        groups.append({'group': len(groups) + 1, 'users': group})
+
     # Prepare response data
-    response_data = [{'group': idx + 1, 'users': group} for idx, group in enumerate(grouped_matches)]
-
-    return jsonify({'groups': response_data}), 200
-
+    return jsonify({'groups': groups}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
