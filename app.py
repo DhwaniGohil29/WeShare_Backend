@@ -4,9 +4,7 @@ from flask_cors import CORS
 import bcrypt
 from flask_jwt_extended import JWTManager, create_access_token
 from datetime import datetime
-from sklearn.cluster import KMeans
 from geopy.distance import great_circle
-import warnings
 from flask import jsonify
 
 app = Flask(__name__)
