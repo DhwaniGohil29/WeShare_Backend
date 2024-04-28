@@ -4,7 +4,6 @@ from flask_cors import CORS
 import bcrypt
 from flask_jwt_extended import JWTManager, create_access_token
 from datetime import datetime
-import pandas as pd
 from sklearn.cluster import KMeans
 from geopy.distance import great_circle
 import warnings
