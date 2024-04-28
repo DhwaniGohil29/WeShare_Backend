@@ -3,10 +3,11 @@ from pymongo import MongoClient
 from flask_cors import CORS 
 import bcrypt
 from flask_jwt_extended import JWTManager, create_access_token
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app) 
-app.config['JWT_SECRET_KEY'] = 'super-secret'  # Change this to a secure, long, random string in production
+app.config['JWT_SECRET_KEY'] = 'sdfregr_56ergq4t242v#345g'  
 jwt = JWTManager(app)
 
 
@@ -93,6 +94,81 @@ def set_preferences():
         db.preferences.insert_one(preference)
 
     return jsonify({'message': 'Preferences saved successfully'}), 201
+
+@app.route('/ride-request', methods=['POST'])
+def save_ride_request():
+    data = request.get_json()
+    email = data.get('email')
+    from_latitude = data.get('fromlatitude')
+    from_longitude = data.get('fromlongitude')
+    to_latitude = data.get('tolatitude')
+    to_longitude = data.get('tolongitude')
+    current_time = datetime.now()
+    if not email or not from_latitude or not from_longitude or not to_latitude or not to_longitude:
+        return jsonify({'message': 'Incomplete ride request data'}), 400
+
+    user = db.users.find_one({'email': email})
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    preferences = db.preferences.find_one({'email': email})
+
+    branch = preferences.get('branch')
+    role = preferences.get('role')
+    year = preferences.get('year')
+    gender = preferences.get('gender')
+
+    existing_ride_request = db.RideRequest.find_one({'email': email})
+
+    if existing_ride_request:
+        db.RideRequest.update_one(
+            {'email': email},
+            {
+                '$set': {
+                    'fromlatitude': from_latitude,
+                    'fromlongitude': from_longitude,
+                    'tolatitude': to_latitude,
+                    'tolongitude': to_longitude,
+                    'branch': branch,
+                    'role': role,
+                    'year': year,
+                    'gender': gender,
+                    'request_time': current_time
+                }
+            }
+        )
+        return jsonify({'message': 'Ride request updated successfully'}), 200
+    else:
+        ride_request_data = {
+            'email': email,
+            'fromlatitude': from_latitude,
+            'fromlongitude': from_longitude,
+            'tolatitude': to_latitude,
+            'tolongitude': to_longitude,
+            'branch': branch,
+            'role': role,
+            'year': year,
+            'gender': gender,
+            'request_time': current_time
+        }
+        db.RideRequest.insert_one(ride_request_data)
+        return jsonify({'message': 'Ride request saved successfully'}), 201
+
+
+@app.route('/remove-ride', methods=['POST'])
+def remove_ride_request():
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({'message': 'Email is required to remove ride request'}), 400
+
+    result = db.RideRequest.delete_many({'email': email})
+
+    if result.deleted_count > 0:
+        return jsonify({'message': 'Ride request(s) removed successfully'}), 200
+    else:
+        return jsonify({'message': 'No ride requests found for the provided email'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
