@@ -1,7 +1,6 @@
 flask
-flask-pymongo
+pymongo
 flask-cors
 bcrypt
 flask-jwt-extended
 pymongo
-bson

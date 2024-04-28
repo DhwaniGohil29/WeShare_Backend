@@ -1,10 +1,9 @@
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
-from bson import ObjectId
 from flask_cors import CORS 
 import bcrypt
 from flask_jwt_extended import JWTManager, create_access_token
-import os
+
 app = Flask(__name__)
 CORS(app) 
 app.config['JWT_SECRET_KEY'] = 'super-secret'  # Change this to a secure, long, random string in production
@@ -76,5 +75,4 @@ def login():
     return jsonify({'message': 'Login successful', 'access_token': access_token}), 200
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000)) 
-    app.run(debug=True, port=port)
+    app.run(debug=True, port=5000, host='0.0.0.0')
