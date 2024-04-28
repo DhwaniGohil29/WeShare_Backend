@@ -4,6 +4,11 @@ from flask_cors import CORS
 import bcrypt
 from flask_jwt_extended import JWTManager, create_access_token
 from datetime import datetime
+import pandas as pd
+from sklearn.cluster import KMeans
+from geopy.distance import great_circle
+import warnings
+from flask import jsonify
 
 app = Flask(__name__)
 CORS(app) 
@@ -15,6 +20,27 @@ app.config['MONGO_URI'] = 'mongodb+srv://dhwanigohil108:RT8PfkeOkkwt57kF@weshare
 
 mongo = MongoClient(app.config['MONGO_URI'])
 db = mongo.get_database()
+
+
+
+def find_closest_users(user_location, data):
+    kmeans = data['kmeans']
+    user_cluster = kmeans.predict([user_location])[0]
+
+    # Filter users belonging to the same cluster
+    cluster_users = data['users'][data['users']['Cluster'] == user_cluster].copy()
+
+    # Calculate distances from user location to all other users in the same cluster
+    cluster_users['Distance'] = cluster_users.apply(
+        lambda row: great_circle((row['Latitude'], row['Longitude']), user_location).kilometers,
+        axis=1
+    )
+
+    # Sort users by distance and return the top 7 nearest users
+    closest_users = cluster_users.sort_values(by='Distance').iloc[:7]
+    return closest_users[['Name', 'Latitude', 'Longitude']]
+
+
 
 @app.route('/', methods=['GET'])
 def index():
@@ -169,6 +195,101 @@ def remove_ride_request():
         return jsonify({'message': 'Ride request(s) removed successfully'}), 200
     else:
         return jsonify({'message': 'No ride requests found for the provided email'}), 404
+
+# @app.route('/find-matching-rides', methods=['POST'])
+# def find_matching_rides():
+#     data = request.get_json()
+#     email = data.get('email')
+#     from_latitude = data.get('from_latitude')
+#     from_longitude = data.get('from_longitude')
+#     to_latitude = data.get('to_latitude')
+#     to_longitude = data.get('to_longitude')
+
+#     if not email or not from_latitude or not from_longitude or not to_latitude or not to_longitude:
+#         return jsonify({'message': 'Incomplete data in request body'}), 400
+
+#     # Query the RideRequest collection to find ride requests with the same destination coordinates
+#     matching_rides = db.RideRequest.find({
+#         'tolatitude': to_latitude,
+#         'tolongitude': to_longitude
+#     })
+
+#     # Prepare list to store distances and user emails
+#     distances = []
+
+#     # Calculate distances and filter out the user's own ride request
+#     for ride in matching_rides:
+#         if ride['email'] != email:
+#             ride_location = (ride['fromlatitude'], ride['fromlongitude'])
+#             user_location = (from_latitude, from_longitude)
+#             distance = great_circle(user_location, ride_location).kilometers
+#             distances.append((ride['email'], distance))
+
+#     # Sort the rides by distance and get the top 6 closest matches
+#     closest_matches = sorted(distances, key=lambda x: x[1])[:6]
+
+#     # Prepare response data
+#     matched_users = [{'email': email, 'distance': distance} for email, distance in closest_matches]
+
+#     return jsonify({'matched_users': matched_users}), 200
+
+def group_by_preferences(users):
+    groups = {}
+    for user in users:
+        preferences = (user['branch'], user['role'], user['year'], user['gender'])
+        if preferences not in groups:
+            groups[preferences] = []
+        groups[preferences].append(user)
+    return groups.values()
+
+
+@app.route('/find-matching-rides', methods=['POST'])
+def find_matching_rides():
+    data = request.get_json()
+    email = data.get('email')
+    from_latitude = data.get('from_latitude')
+    from_longitude = data.get('from_longitude')
+    to_latitude = data.get('to_latitude')
+    to_longitude = data.get('to_longitude')
+
+    if not email or not from_latitude or not from_longitude or not to_latitude or not to_longitude:
+        return jsonify({'message': 'Incomplete data in request body'}), 400
+
+    # Query the RideRequest collection to find ride requests with the same destination coordinates
+    matching_rides = db.RideRequest.find({
+        'tolatitude': to_latitude,
+        'tolongitude': to_longitude
+    })
+
+    # Prepare list to store distances and user data
+    users = []
+
+    # Calculate distances and filter out the user's own ride request
+    for ride in matching_rides:
+        if ride['email'] != email:
+            ride_location = (ride['fromlatitude'], ride['fromlongitude'])
+            user_location = (from_latitude, from_longitude)
+            distance = great_circle(user_location, ride_location).kilometers
+            users.append({
+                'email': ride['email'],
+                'distance': distance,
+                'branch': ride['branch'],
+                'role': ride['role'],
+                'year': ride['year'],
+                'gender': ride['gender']
+            })
+
+    # Sort the rides by distance and get the top 6 closest matches
+    closest_matches = sorted(users, key=lambda x: x['distance'])[:6]
+
+    # Group the closest matches based on similar preferences
+    grouped_matches = group_by_preferences(closest_matches)
+
+    # Prepare response data
+    response_data = [{'group': idx + 1, 'users': group} for idx, group in enumerate(grouped_matches)]
+
+    return jsonify({'groups': response_data}), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
