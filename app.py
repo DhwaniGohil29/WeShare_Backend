@@ -29,11 +29,11 @@ def register():
 
     # Check if all parameters are provided
     if not name or not email or not phone or not password:
-        return jsonify({'error': 'Name, email, phone number, and password are required'}), 400
+        return jsonify({'message': 'Name, email, phone number, and password are required'}), 400
 
     # Check if the email is already registered
     if db.users.find_one({'email': email}):
-        return jsonify({'error': 'Email already exists'}), 400
+        return jsonify({'message': 'Email already exists'}), 400
 
     # Hash the password
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -58,16 +58,16 @@ def login():
 
     # Check if the email and password are provided
     if not email or not password:
-        return jsonify({'error': 'Email and password are required'}), 400
+        return jsonify({'message': 'Email and password are required'}), 400
 
     # Check if the user exists
     user = db.users.find_one({'email': email})
     if not user:
-        return jsonify({'error': 'Invalid email or password'}), 401
+        return jsonify({'message': 'Invalid email or password'}), 401
 
     # Verify the password hash
     if not bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
-        return jsonify({'error': 'Invalid email or password'}), 401
+        return jsonify({'message': 'Invalid email or password'}), 401
 
     # Create an access token for the user
     access_token = create_access_token(identity=str(user['_id']))
