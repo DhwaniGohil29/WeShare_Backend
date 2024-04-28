@@ -343,5 +343,17 @@ def find_matching_rides():
     # Prepare response data
     return jsonify({'groups': groups}), 200
 
+
+@app.route('/ride-requests/locations', methods=['GET'])
+def get_ride_request_locations():
+    # Query the RideRequest collection to retrieve all documents
+    ride_requests = db.RideRequest.find({}, {'_id': 0, 'fromlatitude': 1, 'fromlongitude': 1})
+
+    # Extract fromlatitude and fromlongitude from each document
+    locations = [{'fromlatitude': ride_request['fromlatitude'], 'fromlongitude': ride_request['fromlongitude']} 
+                 for ride_request in ride_requests]
+
+    return jsonify(locations)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
