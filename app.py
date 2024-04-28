@@ -86,9 +86,10 @@ def request_ride():
         'start_location': start_location,
         'end_location': end_location
     }
-    ride_requests.append(ride_request)
+    db.ride_requests.insert_one(ride_request)
 
     return jsonify({'message': 'Ride request received successfully'}), 201
+
 
 if __name__ == '__main__':
     app.run(debug=True)
