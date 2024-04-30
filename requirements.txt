@@ -6,3 +6,4 @@ flask-jwt-extended
 pymongo
 datetime
 geopy
+flask_socketio

@@ -7,9 +7,11 @@ from datetime import datetime
 from geopy.distance import great_circle
 from flask import jsonify
 import uuid
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 CORS(app) 
+socketio = SocketIO(app)
 app.config['JWT_SECRET_KEY'] = 'sdfregr_56ergq4t242v#345g'  
 jwt = JWTManager(app)
 
@@ -179,21 +181,35 @@ def save_ride_request():
         return jsonify({'message': 'Ride request saved successfully'}), 201
 
 
-@app.route('/remove-ride', methods=['POST'])
+# @app.route('/remove-ride', methods=['POST'])
+# def remove_ride_request():
+#     data = request.get_json()
+#     email = data.get('email')
+
+#     if not email:
+#         return jsonify({'message': 'Email is required to remove ride request'}), 400
+
+#     result = db.RideRequest.delete_many({'email': email})
+
+#     if result.deleted_count > 0:
+#         return jsonify({'message': 'Ride request(s) removed successfully'}), 200
+#     else:
+#         return jsonify({'message': 'No ride requests found for the provided email'}), 404
 def remove_ride_request():
     data = request.get_json()
-    email = data.get('email')
+    emails = data.get('emails')
 
-    if not email:
-        return jsonify({'message': 'Email is required to remove ride request'}), 400
+    if not emails:
+        return jsonify({'message': 'Emails are required to remove ride requests'}), 400
 
-    result = db.RideRequest.delete_many({'email': email})
+    result = db.RideRequest.delete_many({'email': {'$in': emails}})
 
     if result.deleted_count > 0:
         return jsonify({'message': 'Ride request(s) removed successfully'}), 200
     else:
-        return jsonify({'message': 'No ride requests found for the provided email'}), 404
-
+        return jsonify({'message': 'No ride requests found for the provided emails'}), 404
+    
+    
 
 def group_by_preferences(users):
     groups = []
@@ -299,6 +315,21 @@ def update_status():
     return jsonify({'message': 'Status updated successfully for group {}'.format(group_id)}), 200
 
 
+@app.route('/delete-group', methods=['DELETE'])
+def delete_group():
+    group_id = request.args.get('group_id')
+
+    if not group_id:
+        return jsonify({'message': 'Group ID is required in the query parameters'}), 400
+
+    group_data = db.groupSelected.find_one({'group_id': group_id})
+    if not group_data:
+        return jsonify({'message': 'Group not found'}), 404
+
+    db.groupSelected.delete_one({'group_id': group_id})
+
+    return jsonify({'message': 'Group deleted successfully', 'group_id': group_id}), 200
+
 
 @app.route('/group-history', methods=['GET'])
 def group_history():
@@ -314,13 +345,24 @@ def group_history():
         return jsonify({'message': 'Group not found'}), 404
     
     all_approved = all(user.get('status') == 'approved' for user in group_data.get('users'))
-
+    
     overall_status = 'approved' if all_approved else 'pending'
     if overall_status == 'approved':
         db.groupHistory.insert_one(group_data)
 
+    # socketio.emit('group_history_updated', {'group_id': group_id, 'overall_status': overall_status})
     return jsonify({'group_id': group_id, 'overall_status': overall_status}), 200
 
+
+# @socketio.on('connect')
+# def handle_connect():
+#     print('Client connected')
+#     emit('connection_response', {'data': 'Connected to the server'})
+
+
+# @socketio.on('disconnect')
+# def handle_disconnect():
+#     print('Client disconnected')
 
 
 if __name__ == '__main__':
