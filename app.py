@@ -302,8 +302,7 @@ def update_status():
 
 @app.route('/group-history', methods=['GET'])
 def group_history():
-    data = request.get_json()
-    group_id = data.get('group_id')
+    group_id = request.args.get('group_id')
 
     if not group_id:
         return jsonify({'message': 'Group ID is required in the query parameters'}), 400
