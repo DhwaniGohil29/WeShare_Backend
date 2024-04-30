@@ -265,5 +265,64 @@ def get_ride_request_locations():
 
     return jsonify(locations)
 
+
+@app.route('/create-group', methods=['POST'])
+def create_group():
+    data = request.get_json()
+    group_id = data.get('group_id')
+    users = data.get('users')
+
+    if not group_id or not users:
+        return jsonify({'message': 'Incomplete data in request body'}), 400
+
+    group_data = {
+        'group_id': group_id,
+        'users': users
+    }
+    db.groupSelected.insert_one(group_data)
+
+    return jsonify({'message': 'Group created successfully', 'group_id': group_id}), 200
+
+
+
+@app.route('/update-status', methods=['POST'])
+def update_status():
+    data = request.get_json()
+    group_id = data.get('group_id')
+    updated_users = data.get('users')
+
+    if not group_id or not updated_users:
+        return jsonify({'message': 'Incomplete data in request body'}), 400
+
+    db.groupSelected.update_one({'group_id': group_id}, {'$set': {'users': updated_users}})
+
+    return jsonify({'message': 'Status updated successfully for group {}'.format(group_id)}), 200
+
+
+
+@app.route('/group-history', methods=['GET'])
+def group_history():
+    data = request.get_json()
+    group_id = data.get('group_id')
+
+    if not group_id:
+        return jsonify({'message': 'Group ID is required in the query parameters'}), 400
+
+
+    group_data = db.groupSelected.find_one({'group_id': group_id})
+
+    if not group_data:
+        return jsonify({'message': 'Group not found'}), 404
+    
+    all_approved = all(user.get('status') == 'approved' for user in group_data.get('users'))
+
+    overall_status = 'approved' if all_approved else 'pending'
+    if overall_status == 'approved':
+        db.groupHistory.insert_one(group_data)
+
+    return jsonify({'group_id': group_id, 'overall_status': overall_status}), 200
+
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
