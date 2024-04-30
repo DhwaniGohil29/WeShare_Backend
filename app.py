@@ -209,7 +209,7 @@ def remove_ride_request():
     else:
         return jsonify({'message': 'No ride requests found for the provided emails'}), 404
     
-    
+
 
 def group_by_preferences(users):
     groups = []
@@ -364,6 +364,97 @@ def group_history():
 # def handle_disconnect():
 #     print('Client disconnected')
 
+
+@app.route('/history', methods=['POST'])
+def get_history():
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({'message': 'Email is required in the request body'}), 400
+
+    # Query groupHistory collection to find groups where the user's email is present
+    user_groups = db.groupHistory.find({'users.email': email})
+
+    # Prepare the response containing group details
+    groups = []
+    for group in user_groups:
+        groups.append({
+            '_id': str(group['_id']),
+            'group_id': group['group_id'],
+            'users': group['users']
+        })
+
+    return jsonify({'user_groups': groups}), 200
+
+@app.route('/add-favorite-group', methods=['POST'])
+def add_favorite_group():
+    data = request.get_json()
+    user = data.get('user')
+    member1 = data.get('member1')
+    member2 = data.get('member2')
+
+    if not user or not member1 or not member2:
+        return jsonify({'message': 'Incomplete data in request body'}), 400
+
+    favorite_group = {
+        'user': user,
+        'members': [member1, member2]
+    }
+
+    db.favoriteGroups.insert_one(favorite_group)
+
+    return jsonify({'message': 'Favorite group added successfully'}), 201
+
+@app.route('/delete-favorite-group', methods=['POST'])
+def delete_favorite_group():
+    data = request.get_json()
+    user = data.get('user')
+    member1 = data.get('member1')
+    member2 = data.get('member2')
+
+    if not user or not member1 or not member2:
+        return jsonify({'message': 'Incomplete data in request body'}), 400
+
+    result = db.favoriteGroups.delete_one({'user': user, 'members': [member1, member2]})
+
+    if result.deleted_count > 0:
+        return jsonify({'message': 'Favorite group deleted successfully'}), 200
+    else:
+        return jsonify({'message': 'Favorite group not found'}), 404
+
+
+@app.route('/get-favorite-groups', methods=['POST'])
+def get_favorite_groups():
+    data = request.get_json()
+    user = data.get('user')
+
+    if not user:
+        return jsonify({'message': 'User is required in the request body'}), 400
+
+    favorite_groups = list(db.favoriteGroups.find({'user': user}, {'_id': 0}))
+
+    return jsonify({'favorite_groups': favorite_groups}), 200
+
+
+@app.route('/get-user-details', methods=['GET'])
+def get_user_details():
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({'message': 'Email is required in the request body'}), 400
+
+    user_details = db.users.find_one({'email': email}, {'_id': 0, 'name': 1, 'email': 1, 'phone': 1})
+
+    if not user_details:
+        return jsonify({'message': 'User not found'}), 404
+
+    preferences = db.preferences.find_one({'email': email}, {'_id': 0, 'branch': 1, 'role': 1, 'year': 1, 'gender': 1})
+
+    user_details.update(preferences)
+
+    return jsonify({'user_details': user_details}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
