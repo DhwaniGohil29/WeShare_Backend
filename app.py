@@ -328,6 +328,9 @@ def delete_group():
 
     db.groupSelected.delete_one({'group_id': group_id})
 
+    for user in group_data['users']:
+        db.RideRequest.delete_many({'email': user['email']})
+
     return jsonify({'message': 'Group deleted successfully', 'group_id': group_id}), 200
 
 
