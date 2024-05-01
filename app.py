@@ -437,7 +437,7 @@ def get_favorite_groups():
     return jsonify({'favorite_groups': favorite_groups}), 200
 
 
-@app.route('/get-user-details', methods=['GET'])
+@app.route('/get-user-details', methods=['POST'])
 def get_user_details():
     data = request.get_json()
     email = data.get('email')
